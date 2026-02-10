@@ -630,6 +630,50 @@
             cursor: pointer;
         }
 
+        /* Loading Spinner */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(18, 18, 18, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-top: 5px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: white;
+            font-size: 1rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
         /* Responsive Adjustments */
         @media (max-width: 768px) {
             .kanban-column {
@@ -638,6 +682,8 @@
             }
         }
     </style>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -758,6 +804,12 @@
         </div>
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Assets...</div>
+    </div>
+
     <!-- Image Viewer -->
     <div class="image-viewer-overlay" id="imageViewer" onclick="closeImageViewer()">
         <img id="viewerImage" src="" alt="Full Size Reference" onclick="event.stopPropagation()">
@@ -765,44 +817,13 @@
     </div>
 
     <script>
-        const initialAssets = [
-            // Characters > Player
-            { id: 101, parentId: null, title: "Player Idle Animation", priority: "High", status: "In Progress", tags: ["Animation", "Sprite"], description: "Breathing cycle, approx 4 frames (32x32).", refImages: [], refLinks: [] },
-            { id: 102, parentId: null, title: "Player Run Animation", priority: "High", status: "To Do", tags: ["Animation", "Sprite"], description: "Looping run cycle, 6-8 frames.", refImages: [], refLinks: [] },
-            { id: 103, parentId: null, title: "Player Jump", priority: "High", status: "To Do", tags: ["Animation", "Sprite"], description: "Jump start, mid-air, landing frames.", refImages: [], refLinks: [] },
-
-            // Characters > Enemies
-            { id: 110, parentId: null, title: "Slime Enemy", priority: "Medium", status: "To Do", tags: ["Sprite", "Enemy"], description: "Bouncing move, squish on hit.", refImages: [], refLinks: [] },
-            { id: 111, parentId: null, title: "Skeleton Warrior", priority: "Medium", status: "To Do", tags: ["Sprite", "Enemy"], description: "Sword attack animation.", refImages: [], refLinks: [] },
-
-            // Environment > Terrain
-            { id: 201, parentId: null, title: "Grass Tileset", priority: "High", status: "Done", tags: ["Tileset", "World"], description: "Corners, edges, transition to dirt.", refImages: [], refLinks: [] },
-            { id: 202, parentId: null, title: "Dirt Tileset", priority: "Medium", status: "To Do", tags: ["Tileset", "Underground"], description: "For underground levels.", refImages: [], refLinks: [] },
-
-            // Environment > Backgrounds
-            { id: 210, parentId: null, title: "Distant Mountains", priority: "Low", status: "To Do", tags: ["Parallax", "Art"], description: "For parallax scrolling layers.", refImages: [], refLinks: [] },
-            { id: 211, parentId: null, title: "Sky Gradient/Clouds", priority: "Low", status: "To Do", tags: ["Art"], description: "Day/Night variants potentially.", refImages: [], refLinks: [] },
-
-            // Environment > Decorations
-            { id: 220, parentId: null, title: "Trees (Oak/Pine)", priority: "Medium", status: "Review", tags: ["Prop", "Vegetation"], description: "3 variations of trees.", refImages: [], refLinks: [] },
-            { id: 221, parentId: null, title: "Rocks/Boulders", priority: "Low", status: "To Do", tags: ["Prop"], description: "Small and large rocks.", refImages: [], refLinks: [] },
-
-            // Props > Items
-            { id: 301, parentId: null, title: "Gold Coin", priority: "Medium", status: "To Do", tags: ["Animation", "Pickup"], description: "Spinning animation, 4 frames.", refImages: [], refLinks: [] },
-            { id: 302, parentId: null, title: "Health Potion", priority: "Medium", status: "To Do", tags: ["Item"], description: "Red glowing liquid effect.", refImages: [], refLinks: [] },
-
-            // VFX
-            { id: 401, parentId: null, title: "Sword Slash VFX", priority: "High", status: "To Do", tags: ["VFX", "Animation"], description: "Arc shape effect for attacks.", refImages: [], refLinks: [] },
-            { id: 402, parentId: null, title: "Dust Particles", priority: "Low", status: "To Do", tags: ["VFX", "Particles"], description: "For running and landing.", refImages: [], refLinks: [] },
-
-            // UI
-            { id: 501, parentId: null, title: "Health Bar HUD", priority: "High", status: "Done", tags: ["UI"], description: "Frame + Fill bar.", refImages: [], refLinks: [] },
-            { id: 502, parentId: null, title: "Dialog Box", priority: "Medium", status: "In Progress", tags: ["UI", "9-Slice"], description: "Scalable 9-slice background.", refImages: [], refLinks: [] },
-            { id: 503, parentId: null, title: "Standard Buttons", priority: "High", status: "Review", tags: ["UI"], description: "Normal, Hover, Pressed states.", refImages: [], refLinks: [] }
-        ];
+        // Supabase Initialization
+        const SUPABASE_URL = 'https://cobkwypevulbqewndmiv.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNvYmt3eXBldnVsYnFld25kbWl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MDQxMTksImV4cCI6MjA4NjI4MDExOX0.AcShOSruPO-J-hLUC8u0tuq3bJXp8flXAnDNevbJhSc';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // State
-        let assets = [...initialAssets];
+        let assets = [];
         let activeTags = new Set();
         let searchTerm = "";
         let sortBy = "hierarchy"; // Default to hierarchy
@@ -866,7 +887,7 @@
                             <option value="Review" ${asset.status === 'Review' ? 'selected' : ''}>Review</option>
                             <option value="Done" ${asset.status === 'Done' ? 'selected' : ''}>Done</option>
                         </select>
-                        <button class="delete-btn" onclick="deleteAsset(${asset.id}); event.stopPropagation()" title="Delete Asset">&times;</button>
+                        <button class="delete-btn" onclick="event.stopPropagation(); deleteAsset('${asset.id}')" title="Delete Asset">&times;</button>
                     </div>
                 </div>
                 
@@ -1068,20 +1089,32 @@
             renderAssets();
         }
 
-        function updateStatus(id, newStatus) {
+        async function updateStatus(id, newStatus) {
             const asset = assets.find(a => a.id === id);
             if (asset) {
                 asset.status = newStatus;
                 renderAssets();
+
+                const { error } = await supabaseClient
+                    .from('assets')
+                    .update({ status: newStatus })
+                    .eq('id', id);
+
+                if (error) console.error('Error updating status:', error);
             }
         }
 
-        function deleteAsset(id) {
+        async function deleteAsset(id) {
             if (confirm("Are you sure you want to delete this asset?")) {
                 assets = assets.filter(a => a.id !== id);
-                // Also remove children? For now, we leave them as orphans or they disappear from tree view
-                // Optional: assets = assets.filter(a => a.id !== id && a.parentId !== id);
                 renderAssets();
+
+                const { error } = await supabaseClient
+                    .from('assets')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) console.error('Error deleting asset:', error);
             }
         }
 
@@ -1347,58 +1380,119 @@
         });
 
         // Handle Submit
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const parentId = parentIdInput.value ? parseInt(parentIdInput.value) : null;
-            const title = document.getElementById('title').value;
-            const priority = document.getElementById('priority').value;
-            const status = document.getElementById('status').value;
-            const tagsInput = document.getElementById('tags').value;
-            const description = document.getElementById('description').value;
-            const refImages = [...currentModalImages];
-            const refLinks = [...currentModalLinks];
+            // 防止重複點擊
+            if (form.dataset.submitting === 'true') return;
+            form.dataset.submitting = 'true';
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
 
-            const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+            try {
 
-            if (editingAssetId) {
-                // Update Existing
-                const asset = assets.find(a => a.id === editingAssetId);
-                if (asset) {
-                    asset.title = title;
-                    asset.priority = priority;
-                    asset.status = status;
-                    asset.tags = tags;
-                    asset.description = description;
-                    asset.refImages = refImages;
-                    asset.refLinks = refLinks;
-                    // parentId is usually not changed here unless we want to support moving
-                }
-            } else {
-                // Create New
-                const newAsset = {
-                    id: Date.now(), // Simple unique ID
-                    parentId: parentId, // Link to parent
+                const parentId = parentIdInput.value || null;
+                const title = document.getElementById('title').value;
+                const priority = document.getElementById('priority').value;
+                const status = document.getElementById('status').value;
+                const tagsInput = document.getElementById('tags').value;
+                const description = document.getElementById('description').value;
+                const refImages = [...currentModalImages];
+                const refLinks = [...currentModalLinks];
+
+                const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+                const assetData = {
                     title,
                     priority,
                     status: status || 'To Do',
                     tags,
                     description,
-                    refImages,
-                    refLinks,
-                    subtasks: []
+                    ref_images: refImages,
+                    ref_links: refLinks,
+                    parent_id: parentId
                 };
-                assets.push(newAsset);
-            }
 
-            renderTags();
-            renderAssets();
-            closeModal();
+                if (editingAssetId) {
+                    // Update Existing
+                    const { error } = await supabaseClient
+                        .from('assets')
+                        .update(assetData)
+                        .eq('id', editingAssetId);
+
+                    if (error) {
+                        alert('Error updating asset: ' + error.message);
+                        return;
+                    }
+                } else {
+                    // Create New
+                    const { data, error } = await supabaseClient
+                        .from('assets')
+                        .insert([assetData])
+                        .select();
+
+                    if (error) {
+                        alert('Error creating asset: ' + error.message);
+                        return;
+                    }
+                }
+
+                // Reload all assets to sync state
+                await loadAssets();
+                renderTags();
+                renderAssets();
+                closeModal();
+            } catch (error) {
+                alert('Error saving asset: ' + error.message);
+                console.error(error);
+            } finally {
+                form.dataset.submitting = 'false';
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+            }
         });
 
+        async function loadAssets() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.style.display = 'flex';
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('assets')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+
+                // Map Supabase fields to local UI fields if names differ
+                assets = data.map(item => ({
+                    id: item.id,
+                    parentId: item.parent_id,
+                    title: item.title,
+                    priority: item.priority,
+                    status: item.status,
+                    tags: item.tags || [],
+                    description: item.description,
+                    refImages: item.ref_images || [],
+                    refLinks: item.ref_links || []
+                }));
+            } catch (err) {
+                console.error('Error loading assets:', err);
+                alert('Failed to load assets: ' + err.message);
+            } finally {
+                if (overlay) overlay.style.display = 'none';
+            }
+        }
+
         // Initialize
-        renderTags();
-        renderAssets();
+        async function init() {
+            await loadAssets();
+            renderTags();
+            renderAssets();
+        }
+        init();
 
         // Image Viewer Functions
         const imageViewer = document.getElementById('imageViewer');
