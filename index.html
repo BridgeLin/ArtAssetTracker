@@ -965,7 +965,11 @@
             const card = document.createElement('div');
             card.className = `asset-card`;
             card.setAttribute('draggable', 'true');
-            card.onclick = () => openModal(null, asset.id); // Click card to edit
+            card.onclick = (e) => {
+                // Prevent opening the edit modal if an interactive element was clicked
+                if (e.target.closest('button, select, a, .ref-preview')) return;
+                openModal(null, asset.id); // Click card to edit
+            };
 
             // Drag Events
             card.ondragstart = (e) => {
