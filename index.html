@@ -1314,8 +1314,8 @@
 
                 card.innerHTML = `
                     <div class="card-header">
-                        <div class="card-title-group">
-                            <h3 class="card-title">${asset.title}</h3>
+                        <div class="card-title-group" onclick="jumpToHierarchy('${asset.id}'); event.stopPropagation()" style="cursor: pointer;">
+                            <h3 class="card-title" style="color: var(--accent-color);">${asset.title}</h3>
                         </div>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <select 
@@ -1330,6 +1330,7 @@
                             <button class="delete-btn" onclick="event.stopPropagation(); deleteAsset('${asset.id}')" title="Delete Asset">&times;</button>
                         </div>
                     </div>
+                    ${asset.description ? `<div style="font-size: 0.85rem; color: #ccc; white-space: pre-wrap; margin-top: 8px;">${asset.description}</div>` : ''}
                     ${subtasksHtml}
                 `;
                 return card;
