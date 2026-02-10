@@ -983,7 +983,7 @@
             };
 
             const toggleHtml = hasKids
-                ? `<button class="toggle-tree-btn" onclick="toggleCollapse(${asset.id}); event.stopPropagation()" style="background:none; border:1px solid #444; color:var(--text-secondary); cursor:pointer; font-size:0.8rem; padding: 4px 8px; border-radius:4px; font-weight:600; transition: background 0.2s;">${isCollapsed ? '▶ Show Subtasks' : '▼ Hide Subtasks'}</button>`
+                ? `<button class="toggle-tree-btn" onclick="toggleCollapse('${asset.id}'); event.stopPropagation()" style="background:none; border:1px solid #444; color:var(--text-secondary); cursor:pointer; font-size:0.8rem; padding: 4px 8px; border-radius:4px; font-weight:600; transition: background 0.2s;">${isCollapsed ? '▶ Show Subtasks' : '▼ Hide Subtasks'}</button>`
                 : '';
 
             card.innerHTML = `
@@ -994,7 +994,7 @@
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <select 
                             class="status-select status-${asset.status.toLowerCase().replace(' ', '-')}" 
-                            onchange="updateStatus(${asset.id}, this.value)" 
+                            onchange="updateStatus('${asset.id}', this.value)" 
                             onclick="event.stopPropagation()">
                             <option value="To Do" ${asset.status === 'To Do' ? 'selected' : ''}>To Do</option>
                             <option value="In Progress" ${asset.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
@@ -1031,7 +1031,7 @@
                 </div>` : ''}
 
                 <div style="margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; display: flex; align-items: center; gap: 8px;">
-                    <button class="add-subtask-btn" onclick="openModal(${asset.id}); event.stopPropagation()">+ Add Subtask</button>
+                    <button class="add-subtask-btn" onclick="openModal('${asset.id}'); event.stopPropagation()">+ Add Subtask</button>
                     <div style="flex: 1;"></div>
                     ${toggleHtml}
                 </div>
