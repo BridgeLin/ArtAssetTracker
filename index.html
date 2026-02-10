@@ -1276,7 +1276,7 @@
                     ${asset.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
                 </div>
 
-                ${asset.description ? `<div style="font-size: 0.85rem; color: #ccc;">${asset.description}</div>` : ''}
+                ${asset.description ? `<div style="font-size: 0.85rem; color: #ccc; white-space: pre-wrap;">${asset.description}</div>` : ''}
 
                 ${((asset.refImages && asset.refImages.length > 0) || (asset.refLinks && asset.refLinks.length > 0)) ? `
                 <div class="card-reference">
