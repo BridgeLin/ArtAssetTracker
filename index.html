@@ -1043,10 +1043,29 @@
             assetListEl.innerHTML = '';
             const priorityMap = { 'High': 3, 'Medium': 2, 'Low': 1 };
 
+            // For tag inheritance filtering
+            const assetMap = new Map();
+            assets.forEach(a => assetMap.set(String(a.id), a));
+
+            const getInheritedTags = (asset) => {
+                let tags = new Set(asset.tags);
+                let current = asset;
+                while (current && current.parentId) {
+                    current = assetMap.get(String(current.parentId));
+                    if (current) {
+                        current.tags.forEach(t => tags.add(t));
+                    }
+                }
+                return Array.from(tags);
+            };
+
             // Filter
             let filtered = assets.filter(asset => {
                 const matchesSearch = asset.title.toLowerCase().includes(searchTerm.toLowerCase());
-                const matchesTags = activeTags.size === 0 || asset.tags.some(tag => activeTags.has(tag));
+
+                const effectiveTags = getInheritedTags(asset);
+                const matchesTags = activeTags.size === 0 || effectiveTags.some(tag => activeTags.has(tag));
+
                 return matchesSearch && matchesTags;
             });
 
