@@ -1351,7 +1351,7 @@
                 const matchesSearch = asset.title.toLowerCase().includes(searchTerm.toLowerCase());
 
                 const effectiveTags = getInheritedTags(asset);
-                const matchesTags = activeTags.size === 0 || effectiveTags.some(tag => activeTags.has(tag));
+                const matchesTags = activeTags.size === 0 || Array.from(activeTags).every(tag => effectiveTags.includes(tag));
 
                 return matchesSearch && matchesTags;
             });
