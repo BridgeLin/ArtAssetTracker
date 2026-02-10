@@ -630,6 +630,64 @@
             cursor: pointer;
         }
 
+        /* Kanban Tree Styles */
+        .kanban-subtasks {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .kanban-subtask-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding: 4px 6px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .kanban-subtask-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--accent-color);
+        }
+
+        .kanban-subtask-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .kanban-subtask-status {
+            font-size: 0.7rem;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: 8px;
+            flex-shrink: 0;
+        }
+
+        @keyframes highlight-fade {
+            0% {
+                background-color: rgba(187, 134, 252, 0.4);
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        .jump-highlight {
+            animation: highlight-fade 2s ease-out;
+            border-color: var(--accent-color) !important;
+        }
+
         /* Loading Spinner */
         .loading-overlay {
             display: none;
@@ -1219,13 +1277,14 @@
             });
         }
 
-        function createAssetCard(asset, hasKids = false, isCollapsed = false) {
+        function createAssetCard(asset, hasKids = false, isCollapsed = false, viewMode = 'standard') {
             const card = document.createElement('div');
+            card.id = `asset-card-${asset.id}`;
             card.className = `asset-card`;
             card.setAttribute('draggable', 'true');
             card.onclick = (e) => {
                 // Prevent opening the edit modal if an interactive element was clicked
-                if (e.target.closest('button, select, a, .ref-preview')) return;
+                if (e.target.closest('button, select, a, .ref-preview, .kanban-subtask-item')) return;
                 openModal(null, asset.id); // Click card to edit
             };
 
@@ -1239,6 +1298,42 @@
             card.ondragend = () => {
                 card.classList.remove('dragging');
             };
+
+            if (viewMode === 'kanban-compact') {
+                const subtasks = assets.filter(a => a.parentId === asset.id);
+                const subtasksHtml = subtasks.length > 0
+                    ? `<div class="kanban-subtasks">
+                        ${subtasks.map(s => `
+                            <div class="kanban-subtask-item" onclick="jumpToHierarchy('${s.id}'); event.stopPropagation()">
+                                <span class="kanban-subtask-name">${s.title}</span>
+                                <span class="kanban-subtask-status status-${s.status.toLowerCase().replace(' ', '-')}">${s.status}</span>
+                            </div>
+                        `).join('')}
+                       </div>`
+                    : '';
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-title-group">
+                            <h3 class="card-title">${asset.title}</h3>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select 
+                                class="status-select status-${asset.status.toLowerCase().replace(' ', '-')}" 
+                                onchange="updateStatus('${asset.id}', this.value)" 
+                                onclick="event.stopPropagation()">
+                                <option value="To Do" ${asset.status === 'To Do' ? 'selected' : ''}>To Do</option>
+                                <option value="In Progress" ${asset.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                                <option value="Review" ${asset.status === 'Review' ? 'selected' : ''}>Review</option>
+                                <option value="Done" ${asset.status === 'Done' ? 'selected' : ''}>Done</option>
+                            </select>
+                            <button class="delete-btn" onclick="event.stopPropagation(); deleteAsset('${asset.id}')" title="Delete Asset">&times;</button>
+                        </div>
+                    </div>
+                    ${subtasksHtml}
+                `;
+                return card;
+            }
 
             const toggleHtml = hasKids
                 ? `<button class="toggle-tree-btn" onclick="toggleCollapse('${asset.id}'); event.stopPropagation()" style="background:none; border:1px solid #444; color:var(--text-secondary); cursor:pointer; font-size:0.8rem; padding: 4px 8px; border-radius:4px; font-weight:600; transition: background 0.2s;">${isCollapsed ? '▶ Show Subtasks' : '▼ Hide Subtasks'}</button>`
@@ -1426,6 +1521,10 @@
 
                 const statuses = ['To Do', 'In Progress', 'Review', 'Done'];
 
+                // In Kanban mode, we only show top-level (Level 1) parents.
+                // Level 2 subtasks are shown inside those cards.
+                const rootAssets = filtered.filter(a => !a.parentId);
+
                 statuses.forEach(status => {
                     const col = document.createElement('div');
                     col.className = 'kanban-column';
@@ -1450,15 +1549,15 @@
                     };
 
                     const header = document.createElement('h3');
-                    const count = filtered.filter(a => (a.status || 'To Do') === status).length;
+                    const count = rootAssets.filter(a => (a.status || 'To Do') === status).length;
                     header.innerHTML = `${status} <span>${count}</span>`;
                     col.appendChild(header);
 
-                    filtered
+                    rootAssets
                         .filter(a => (a.status || 'To Do') === status)
                         .sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority])
                         .forEach(asset => {
-                            col.appendChild(createAssetCard(asset));
+                            col.appendChild(createAssetCard(asset, false, false, 'kanban-compact'));
                         });
 
                     board.appendChild(col);
@@ -1500,6 +1599,31 @@
         }
 
 
+
+        async function jumpToHierarchy(id) {
+            // Switch to hierarchy
+            sortBy = 'hierarchy';
+            sortSelect.value = 'hierarchy';
+
+            // Expand all parents of the target asset
+            let current = assets.find(a => a.id === id);
+            while (current && current.parentId) {
+                collapsedAssets.delete(current.parentId);
+                current = assets.find(a => a.id === current.parentId);
+            }
+
+            renderAssets();
+
+            // Wait for DOM to update
+            setTimeout(() => {
+                const target = document.getElementById(`asset-card-${id}`);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    target.classList.add('jump-highlight');
+                    setTimeout(() => target.classList.remove('jump-highlight'), 3000);
+                }
+            }, 100);
+        }
 
         function toggleCollapse(id) {
             if (collapsedAssets.has(id)) {
