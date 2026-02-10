@@ -769,6 +769,96 @@
                 display: none;
             }
         }
+
+        /* Projects Section */
+        .projects-section {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .projects-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .project-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .project-tab {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .project-tab:hover {
+            border-color: var(--accent-color);
+            background-color: #2a2a2a;
+        }
+
+        .project-tab.active {
+            background-color: var(--accent-color);
+            color: #000;
+            border-color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .project-tab.active .delete-project-btn {
+            color: #000;
+        }
+
+        .delete-project-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+            transition: opacity 0.2s, color 0.2s;
+        }
+
+        .delete-project-btn:hover {
+            opacity: 1;
+            color: #ff4444 !important;
+        }
+
+        .add-project-btn {
+            background: none;
+            border: 1px dashed #444;
+            color: var(--text-secondary);
+            padding: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .add-project-btn:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            background-color: rgba(187, 134, 252, 0.05);
+        }
     </style>
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -779,6 +869,16 @@
     <aside class="sidebar">
         <button class="close-sidebar-btn" onclick="toggleSidebar()">&times;</button>
         <div class="title">ART ASSET TRACKER</div>
+
+        <div class="projects-section">
+            <div class="projects-header">
+                <label>Projects</label>
+                <button class="add-project-btn" onclick="createNewProject()">+ New</button>
+            </div>
+            <div class="project-list" id="projectList">
+                <!-- Projects injected by JS -->
+            </div>
+        </div>
 
         <div class="control-group">
             <label>Search</label>
@@ -922,6 +1022,8 @@
 
         // State
         let assets = [];
+        let projects = [];
+        let activeProjectId = localStorage.getItem('activeProjectId') || null;
         let activeTags = new Set();
         let searchTerm = "";
         let sortBy = "hierarchy"; // Default to hierarchy
@@ -929,11 +1031,13 @@
 
         // Elements
         const assetListEl = document.getElementById('assetList');
+        const projectListEl = document.getElementById('projectList');
         const tagFiltersEl = document.getElementById('tagFilters');
         const searchInput = document.getElementById('searchInput');
         const sortSelect = document.getElementById('sortSelect');
         const statsDisplay = document.getElementById('statsDisplay');
         const sidebar = document.querySelector('.sidebar');
+        const mainHeaderTitle = document.querySelector('.header h1');
 
         function toggleSidebar() {
             sidebar.classList.toggle('active');
@@ -943,6 +1047,117 @@
         function handleMobileSidebarClose() {
             if (window.innerWidth <= 768) {
                 sidebar.classList.remove('active');
+            }
+        }
+
+        // Project Functions
+        async function loadProjects() {
+            const { data, error } = await supabaseClient
+                .from('projects')
+                .select('*')
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                console.error('Error loading projects:', error);
+                return;
+            }
+
+            projects = data || [];
+
+            if (projects.length > 0) {
+                if (!activeProjectId || !projects.find(p => p.id === activeProjectId)) {
+                    activeProjectId = projects[0].id;
+                    localStorage.setItem('activeProjectId', activeProjectId);
+                }
+            } else {
+                activeProjectId = null;
+                localStorage.removeItem('activeProjectId');
+            }
+
+            renderProjects();
+            updateHeaderTitle();
+        }
+
+        function renderProjects() {
+            projectListEl.innerHTML = '';
+            projects.forEach(project => {
+                const projectEl = document.createElement('div');
+                projectEl.className = `project-tab ${activeProjectId === project.id ? 'active' : ''}`;
+                projectEl.onclick = () => switchProject(project.id);
+
+                projectEl.innerHTML = `
+                    <span>${project.name}</span>
+                    <button class="delete-project-btn" onclick="event.stopPropagation(); deleteProject('${project.id}')" title="Delete Project">&times;</button>
+                `;
+                projectListEl.appendChild(projectEl);
+            });
+        }
+
+        async function switchProject(id) {
+            if (activeProjectId === id) return;
+            activeProjectId = id;
+            localStorage.setItem('activeProjectId', id);
+            renderProjects();
+            updateHeaderTitle();
+
+            // Clear filters when switching projects? Optional, but usually cleaner.
+            activeTags.clear();
+            renderTags();
+
+            await loadAssets();
+            renderAssets();
+        }
+
+        function updateHeaderTitle() {
+            const activeProject = projects.find(p => p.id === activeProjectId);
+            mainHeaderTitle.textContent = activeProject ? activeProject.name : 'Tasks';
+        }
+
+        async function createNewProject() {
+            const name = prompt("Enter project name:");
+            if (!name) return;
+
+            const { data, error } = await supabaseClient
+                .from('projects')
+                .insert([{ name }])
+                .select();
+
+            if (error) {
+                alert('Error creating project: ' + error.message);
+                return;
+            }
+
+            if (data && data.length > 0) {
+                await loadProjects();
+                await switchProject(data[0].id);
+            }
+        }
+
+        async function deleteProject(id) {
+            const project = projects.find(p => p.id === id);
+            if (confirm(`Are you sure you want to delete project "${project.name}"? This will delete ALL associated tasks.`)) {
+                const { error } = await supabaseClient
+                    .from('projects')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    alert('Error deleting project: ' + error.message);
+                    return;
+                }
+
+                await loadProjects();
+                if (projects.length > 0) {
+                    await switchProject(projects[0].id);
+                } else {
+                    activeProjectId = null;
+                    localStorage.removeItem('activeProjectId');
+                    projects = [];
+                    assets = [];
+                    renderProjects();
+                    renderAssets();
+                    updateHeaderTitle();
+                }
             }
         }
 
@@ -1040,6 +1255,27 @@
         }
 
         function renderAssets() {
+            // Disable Add Asset button if no project
+            const addBtn = document.querySelector('.add-btn');
+            if (addBtn) {
+                addBtn.disabled = !activeProjectId;
+                addBtn.title = activeProjectId ? '' : 'Please create a project first';
+                addBtn.style.opacity = activeProjectId ? '1' : '0.5';
+                addBtn.style.cursor = activeProjectId ? 'pointer' : 'not-allowed';
+            }
+
+            if (!activeProjectId) {
+                assetListEl.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">
+                        <h3>Welcome to Art Asset Tracker</h3>
+                        <p>Create a project in the left sidebar to start tracking your assets.</p>
+                        <button class="add-btn" onclick="createNewProject()" style="margin-top: 10px;">+ Create First Project</button>
+                    </div>
+                `;
+                statsDisplay.textContent = 'Progress: 0/0 (0%)';
+                return;
+            }
+
             assetListEl.innerHTML = '';
             const priorityMap = { 'High': 3, 'Medium': 2, 'Low': 1 };
 
@@ -1566,7 +1802,8 @@
                     description,
                     ref_images: refImages,
                     ref_links: refLinks,
-                    parent_id: parentId
+                    parent_id: parentId,
+                    project_id: activeProjectId
                 };
 
                 if (editingAssetId) {
@@ -1613,10 +1850,20 @@
             if (overlay) overlay.style.display = 'flex';
 
             try {
-                const { data, error } = await supabaseClient
-                    .from('assets')
-                    .select('*')
-                    .order('created_at', { ascending: true });
+                let query = supabaseClient.from('assets').select('*');
+
+                if (activeProjectId) {
+                    query = query.eq('project_id', activeProjectId);
+                } else {
+                    // If no project selected, show nothing? Or show everything?
+                    // According to requirements: "一次只顯示一個專案"
+                    // If no project exists, data should be empty.
+                    assets = [];
+                    renderAssets();
+                    return;
+                }
+
+                const { data, error } = await query.order('created_at', { ascending: true });
 
                 if (error) throw error;
 
@@ -1642,6 +1889,7 @@
 
         // Initialize
         async function init() {
+            await loadProjects();
             await loadAssets();
             renderTags();
             renderAssets();
