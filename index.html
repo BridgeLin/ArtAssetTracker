@@ -1155,9 +1155,8 @@
                         e.preventDefault();
                         col.classList.remove('drag-over');
                         const assetIdString = e.dataTransfer.getData('text/plain');
-                        const assetId = parseInt(assetIdString);
-                        if (!isNaN(assetId)) {
-                            updateStatus(assetId, status);
+                        if (assetIdString) {
+                            updateStatus(assetIdString, status);
                         }
                     };
 
