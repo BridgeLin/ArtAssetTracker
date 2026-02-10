@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Art Asset Tracker</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --sidebar-bg: #1e1e1e;
+            --card-bg: #252525;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-color: #bb86fc;
+            --accent-hover: #9965f4;
+            --border-color: #333;
+            --priority-high: #cf6679;
+            --priority-medium: #ffb74d;
+            --priority-low: #81c784;
+            --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        select {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus,
+        select:focus {
+            outline: 2px solid var(--accent-color);
+            border-color: transparent;
+        }
+
+        .tag-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag-filter {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tag-filter.active {
+            background-color: var(--accent-color);
+            color: #000;
+            font-weight: 600;
+        }
+
+        .stats {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 20px 40px;
+            overflow-y: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+
+        .add-btn {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .add-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Asset Grid */
+        .asset-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        /* Asset Card */
+        .asset-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .asset-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border-color: var(--accent-color);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .card-title-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .breadcrumb {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .checkbox-wrapper {
+            cursor: pointer;
+        }
+
+        .checkbox-wrapper input {
+            transform: scale(1.2);
+            accent-color: var(--accent-color);
+        }
+
+        .card-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .badge-priority-high {
+            background-color: rgba(207, 102, 121, 0.2);
+            color: var(--priority-high);
+            border: 1px solid var(--priority-high);
+        }
+
+        .badge-priority-medium {
+            background-color: rgba(255, 183, 77, 0.2);
+            color: var(--priority-medium);
+            border: 1px solid var(--priority-medium);
+        }
+
+        .badge-priority-low {
+            background-color: rgba(129, 199, 132, 0.2);
+            color: var(--priority-low);
+            border: 1px solid var(--priority-low);
+        }
+
+        .tag {
+            background-color: #333;
+            color: #ccc;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+        }
+
+        .card-reference {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .ref-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 4px;
+        }
+
+        .ref-preview {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #444;
+            background: #111;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ref-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #imageGallery.drag-over {
+            border-color: var(--accent-color) !important;
+            background-color: rgba(0, 184, 148, 0.05);
+            /* Very subtle tint */
+            outline: 2px dashed var(--accent-color);
+        }
+
+        .ref-link {
+            font-size: 0.8rem;
+            color: var(--accent-color);
+            text-decoration: none;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        .ref-link:hover {
+            text-decoration: underline;
+        }
+
+        .ref-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Tree View Styles */
+        .asset-list.tree-view {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .asset-list.tree-view .asset-card {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .tree-node {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .tree-children {
+            margin-left: 32px;
+            padding-left: 16px;
+            border-left: 1px dashed var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .completed-card {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background-color: var(--sidebar-bg);
+            padding: 24px;
+            border-radius: 12px;
+            width: 500px;
+            max-width: 90%;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .close-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: 2px solid var(--accent-color);
+            border-color: transparent;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--card-bg);
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .add-subtask-btn {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 4px;
+        }
+
+        .add-subtask-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Status Badges */
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            text-transform: uppercase;
+            width: fit-content;
+        }
+
+        .status-select {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+            text-transform: uppercase;
+            width: fit-content;
+            border: none;
+            cursor: pointer;
+            color: white;
+            appearance: none;
+            /* Remove default arrow in some browsers if desired, or keep it */
+        }
+
+        .status-select option {
+            background-color: #333;
+            color: white;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        .delete-btn:hover {
+            color: #ff4444;
+        }
+
+        .status-to-do {
+            background-color: #4a4a4a;
+            color: #fff;
+        }
+
+        .status-in-progress {
+            background-color: #007bff;
+            color: #fff;
+        }
+
+        .status-review {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .status-done {
+            background-color: #28a745;
+            color: #fff;
+        }
+
+        /* Kanban Board */
+        .kanban-board {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding-bottom: 16px;
+            align-items: flex-start;
+            height: 100%;
+        }
+
+        .kanban-column {
+            flex: 0 0 320px;
+            background-color: #222;
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 200px;
+        }
+
+        .kanban-column h3 {
+            margin: 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #444;
+            font-size: 1rem;
+            color: #d0d0d0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .kanban-column .asset-card {
+            background-color: #2a2a2a;
+            /* Slightly lighter than col */
+            cursor: grab;
+        }
+
+        .kanban-column .asset-card:active {
+            cursor: grabbing;
+        }
+
+        .asset-card.dragging {
+            opacity: 0.5;
+            border: 2px dashed var(--accent-color);
+        }
+
+        .kanban-column.drag-over {
+            background-color: #333;
+            outline: 2px dashed var(--accent-color);
+        }
+
+        /* Image Viewer Lightbox */
+        .image-viewer-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .image-viewer-overlay img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            cursor: default;
+        }
+
+        .viewer-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .kanban-column {
+                flex: 0 0 85vw;
+                /* Show one column mostly on mobile */
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="title">ART ASSET TRACKER</div>
+
+        <div class="control-group">
+            <label>Search</label>
+            <input type="text" id="searchInput" placeholder="Search assets...">
+        </div>
+
+        <div class="control-group">
+            <label>Sort By</label>
+            <select id="sortSelect">
+                <option value="hierarchy" selected>Hierarchy (Tree View)</option>
+                <option value="kanban">Kanban Board</option>
+                <option value="priority">Priority (High -> Low)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Filter by Tag</label>
+            <div class="tag-cloud" id="tagFilters">
+                <!-- Tags injected by JS -->
+            </div>
+        </div>
+
+        <div class="stats" id="statsDisplay">
+            <!-- Stats injected by JS -->
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="header">
+            <h1>Tasks</h1>
+            <button class="add-btn" onclick="openModal()">+ New Asset</button>
+        </div>
+
+        <div class="asset-list" id="assetList">
+            <!-- Cards injected by JS -->
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="addAssetModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">Add New Asset</div>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="addAssetForm">
+                <input type="hidden" id="parentId">
+
+                <div class="form-group">
+                    <label for="title">Asset Title *</label>
+                    <input type="text" id="title" required placeholder="e.g., Player Jump Animation">
+                </div>
+
+
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="priority">Priority</label>
+                        <select id="priority">
+                            <option value="Low">Low</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status">
+                            <option value="To Do" selected>To Do</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Review">Review</option>
+                            <option value="Done">Done</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="tags">Tags (comma separated)</label>
+                    <input type="text" id="tags" placeholder="e.g., Sprite, Animation">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" placeholder="Brief description of requirements..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Reference Images (Paste images here to add)</label>
+                    <div id="imageGallery"
+                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin-bottom: 10px; border: 2px dashed #444; padding: 10px; border-radius: 4px; min-height: 50px;">
+                        <!-- Images injected here -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Reference Links</label>
+                    <div id="linksList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+                        <!-- Links injected here -->
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="newLinkUrl" placeholder="https://..." style="flex: 2;">
+                        <input type="text" id="newLinkTitle" placeholder="Title (optional)" style="flex: 1;">
+                        <button type="button" class="btn btn-secondary" onclick="addLinkFromModal()"
+                            style="padding: 0 12px;">Add</button>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Asset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Image Viewer -->
+    <div class="image-viewer-overlay" id="imageViewer" onclick="closeImageViewer()">
+        <img id="viewerImage" src="" alt="Full Size Reference" onclick="event.stopPropagation()">
+        <div class="viewer-close" onclick="closeImageViewer()">&times;</div>
+    </div>
+
+    <script>
+        const initialAssets = [
+            // Characters > Player
+            { id: 101, parentId: null, title: "Player Idle Animation", priority: "High", status: "In Progress", tags: ["Animation", "Sprite"], description: "Breathing cycle, approx 4 frames (32x32).", refImages: [], refLinks: [] },
+            { id: 102, parentId: null, title: "Player Run Animation", priority: "High", status: "To Do", tags: ["Animation", "Sprite"], description: "Looping run cycle, 6-8 frames.", refImages: [], refLinks: [] },
+            { id: 103, parentId: null, title: "Player Jump", priority: "High", status: "To Do", tags: ["Animation", "Sprite"], description: "Jump start, mid-air, landing frames.", refImages: [], refLinks: [] },
+
+            // Characters > Enemies
+            { id: 110, parentId: null, title: "Slime Enemy", priority: "Medium", status: "To Do", tags: ["Sprite", "Enemy"], description: "Bouncing move, squish on hit.", refImages: [], refLinks: [] },
+            { id: 111, parentId: null, title: "Skeleton Warrior", priority: "Medium", status: "To Do", tags: ["Sprite", "Enemy"], description: "Sword attack animation.", refImages: [], refLinks: [] },
+
+            // Environment > Terrain
+            { id: 201, parentId: null, title: "Grass Tileset", priority: "High", status: "Done", tags: ["Tileset", "World"], description: "Corners, edges, transition to dirt.", refImages: [], refLinks: [] },
+            { id: 202, parentId: null, title: "Dirt Tileset", priority: "Medium", status: "To Do", tags: ["Tileset", "Underground"], description: "For underground levels.", refImages: [], refLinks: [] },
+
+            // Environment > Backgrounds
+            { id: 210, parentId: null, title: "Distant Mountains", priority: "Low", status: "To Do", tags: ["Parallax", "Art"], description: "For parallax scrolling layers.", refImages: [], refLinks: [] },
+            { id: 211, parentId: null, title: "Sky Gradient/Clouds", priority: "Low", status: "To Do", tags: ["Art"], description: "Day/Night variants potentially.", refImages: [], refLinks: [] },
+
+            // Environment > Decorations
+            { id: 220, parentId: null, title: "Trees (Oak/Pine)", priority: "Medium", status: "Review", tags: ["Prop", "Vegetation"], description: "3 variations of trees.", refImages: [], refLinks: [] },
+            { id: 221, parentId: null, title: "Rocks/Boulders", priority: "Low", status: "To Do", tags: ["Prop"], description: "Small and large rocks.", refImages: [], refLinks: [] },
+
+            // Props > Items
+            { id: 301, parentId: null, title: "Gold Coin", priority: "Medium", status: "To Do", tags: ["Animation", "Pickup"], description: "Spinning animation, 4 frames.", refImages: [], refLinks: [] },
+            { id: 302, parentId: null, title: "Health Potion", priority: "Medium", status: "To Do", tags: ["Item"], description: "Red glowing liquid effect.", refImages: [], refLinks: [] },
+
+            // VFX
+            { id: 401, parentId: null, title: "Sword Slash VFX", priority: "High", status: "To Do", tags: ["VFX", "Animation"], description: "Arc shape effect for attacks.", refImages: [], refLinks: [] },
+            { id: 402, parentId: null, title: "Dust Particles", priority: "Low", status: "To Do", tags: ["VFX", "Particles"], description: "For running and landing.", refImages: [], refLinks: [] },
+
+            // UI
+            { id: 501, parentId: null, title: "Health Bar HUD", priority: "High", status: "Done", tags: ["UI"], description: "Frame + Fill bar.", refImages: [], refLinks: [] },
+            { id: 502, parentId: null, title: "Dialog Box", priority: "Medium", status: "In Progress", tags: ["UI", "9-Slice"], description: "Scalable 9-slice background.", refImages: [], refLinks: [] },
+            { id: 503, parentId: null, title: "Standard Buttons", priority: "High", status: "Review", tags: ["UI"], description: "Normal, Hover, Pressed states.", refImages: [], refLinks: [] }
+        ];
+
+        // State
+        let assets = [...initialAssets];
+        let activeTags = new Set();
+        let searchTerm = "";
+        let sortBy = "hierarchy"; // Default to hierarchy
+        let collapsedAssets = new Set(); // Track collapsed nodes
+
+        // Elements
+        const assetListEl = document.getElementById('assetList');
+        const tagFiltersEl = document.getElementById('tagFilters');
+        const searchInput = document.getElementById('searchInput');
+        const sortSelect = document.getElementById('sortSelect');
+        const statsDisplay = document.getElementById('statsDisplay');
+
+        // Render Functions
+        function renderTags() {
+            const allTags = new Set();
+            assets.forEach(asset => asset.tags.forEach(tag => allTags.add(tag)));
+
+            tagFiltersEl.innerHTML = '';
+            allTags.forEach(tag => {
+                const tagEl = document.createElement('div');
+                tagEl.className = `tag-filter ${activeTags.has(tag) ? 'active' : ''}`;
+                tagEl.textContent = tag;
+                tagEl.onclick = () => toggleTag(tag);
+                tagFiltersEl.appendChild(tagEl);
+            });
+        }
+
+        function createAssetCard(asset, hasKids = false, isCollapsed = false) {
+            const card = document.createElement('div');
+            card.className = `asset-card`;
+            card.setAttribute('draggable', 'true');
+            card.onclick = () => openModal(null, asset.id); // Click card to edit
+
+            // Drag Events
+            card.ondragstart = (e) => {
+                e.dataTransfer.setData('text/plain', asset.id);
+                card.classList.add('dragging');
+                e.stopPropagation();
+            };
+
+            card.ondragend = () => {
+                card.classList.remove('dragging');
+            };
+
+            const toggleHtml = hasKids
+                ? `<button class="toggle-tree-btn" onclick="toggleCollapse(${asset.id}); event.stopPropagation()" style="background:none; border:1px solid #444; color:var(--text-secondary); cursor:pointer; font-size:0.8rem; padding: 4px 8px; border-radius:4px; font-weight:600; transition: background 0.2s;">${isCollapsed ? '▶ Show Subtasks' : '▼ Hide Subtasks'}</button>`
+                : '';
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="card-title-group">
+                        <h3 class="card-title">${asset.title}</h3>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select 
+                            class="status-select status-${asset.status.toLowerCase().replace(' ', '-')}" 
+                            onchange="updateStatus(${asset.id}, this.value)" 
+                            onclick="event.stopPropagation()">
+                            <option value="To Do" ${asset.status === 'To Do' ? 'selected' : ''}>To Do</option>
+                            <option value="In Progress" ${asset.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                            <option value="Review" ${asset.status === 'Review' ? 'selected' : ''}>Review</option>
+                            <option value="Done" ${asset.status === 'Done' ? 'selected' : ''}>Done</option>
+                        </select>
+                        <button class="delete-btn" onclick="deleteAsset(${asset.id}); event.stopPropagation()" title="Delete Asset">&times;</button>
+                    </div>
+                </div>
+                
+                <div class="card-meta">
+                    <span class="badge badge-priority-${asset.priority.toLowerCase()}">${asset.priority}</span>
+                    ${asset.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                </div>
+
+                ${asset.description ? `<div style="font-size: 0.85rem; color: #ccc;">${asset.description}</div>` : ''}
+
+                ${((asset.refImages && asset.refImages.length > 0) || (asset.refLinks && asset.refLinks.length > 0)) ? `
+                <div class="card-reference">
+                    ${(asset.refImages && asset.refImages.length > 0) ? `
+                    <div class="ref-gallery">
+                        ${asset.refImages.map(img => `
+                            <div class="ref-preview" onclick="openImageViewer('${img}'); event.stopPropagation()">
+                                <img src="${img}" alt="Ref">
+                            </div>
+                        `).join('')}
+                    </div>` : ''}
+                    ${(asset.refLinks && asset.refLinks.length > 0) ? `
+                    <div class="ref-links-list" style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                        ${asset.refLinks.map(link => `
+                            <a href="${link.url}" class="ref-link" target="_blank" onclick="event.stopPropagation()" title="${link.url}">${link.title || link.url} ↗</a>
+                        `).join('')}
+                    </div>` : ''}
+                </div>` : ''}
+
+                <div style="margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; display: flex; align-items: center; gap: 8px;">
+                    <button class="add-subtask-btn" onclick="openModal(${asset.id}); event.stopPropagation()">+ Add Subtask</button>
+                    <div style="flex: 1;"></div>
+                    ${toggleHtml}
+                </div>
+            `;
+            return card;
+        }
+
+        function renderAssets() {
+            assetListEl.innerHTML = '';
+            const priorityMap = { 'High': 3, 'Medium': 2, 'Low': 1 };
+
+            // Filter
+            let filtered = assets.filter(asset => {
+                const matchesSearch = asset.title.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchesTags = activeTags.size === 0 || asset.tags.some(tag => activeTags.has(tag));
+                return matchesSearch && matchesTags;
+            });
+
+            // If searching or filtering tags, force flat view logic mostly? 
+            // Or just filter nodes. If a child is matched but parent isn't?
+            // For simplicity: If search/filter is active, we might show flat list OR show hierarchy if we match parent.
+            // Let's stick to strict matching for now.
+
+            // Sort & View Mode
+            if (sortBy === 'hierarchy') {
+                assetListEl.classList.add('tree-view');
+                assetListEl.classList.remove('asset-list-grid');
+
+                // Build Tree
+                const roots = filtered.filter(a => !a.parentId);
+                const childrenMap = {};
+                filtered.forEach(a => {
+                    if (a.parentId) {
+                        if (!childrenMap[a.parentId]) childrenMap[a.parentId] = [];
+                        childrenMap[a.parentId].push(a);
+                    }
+                });
+
+                const renderNode = (asset) => {
+                    const nodeContainer = document.createElement('div');
+                    nodeContainer.className = 'tree-node';
+
+                    // Check for children
+                    const kids = childrenMap[asset.id];
+                    const hasKids = kids && kids.length > 0;
+                    const isCollapsed = collapsedAssets.has(asset.id);
+
+                    const card = createAssetCard(asset, hasKids, isCollapsed);
+                    nodeContainer.appendChild(card);
+
+
+                    if (hasKids && !isCollapsed) {
+                        const childrenContainer = document.createElement('div');
+                        childrenContainer.className = 'tree-children';
+                        kids.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority])
+                            .forEach(kid => {
+                                childrenContainer.appendChild(renderNode(kid));
+                            });
+                        nodeContainer.appendChild(childrenContainer);
+                    }
+
+                    return nodeContainer;
+                };
+
+                const filteredIds = new Set(filtered.map(a => a.id));
+                const renderRoots = filtered.filter(a => !a.parentId || !filteredIds.has(a.parentId));
+
+                renderRoots.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority])
+                    .forEach(root => {
+                        assetListEl.appendChild(renderNode(root));
+                    });
+
+                assetListEl.style.display = 'flex';
+                assetListEl.style.flexDirection = 'column';
+                assetListEl.style.gridTemplateColumns = 'none';
+
+            } else if (sortBy === 'kanban') {
+                assetListEl.classList.remove('tree-view');
+                assetListEl.classList.remove('asset-list-grid');
+                assetListEl.style.display = 'block'; // Kanban board manages its own display
+
+                const board = document.createElement('div');
+                board.className = 'kanban-board';
+
+                const statuses = ['To Do', 'In Progress', 'Review', 'Done'];
+
+                statuses.forEach(status => {
+                    const col = document.createElement('div');
+                    col.className = 'kanban-column';
+
+                    // Kanban Drop Events
+                    col.ondragover = (e) => {
+                        e.preventDefault();
+                        col.classList.add('drag-over');
+                    };
+
+                    col.ondragleave = () => {
+                        col.classList.remove('drag-over');
+                    };
+
+                    col.ondrop = (e) => {
+                        e.preventDefault();
+                        col.classList.remove('drag-over');
+                        const assetIdString = e.dataTransfer.getData('text/plain');
+                        const assetId = parseInt(assetIdString);
+                        if (!isNaN(assetId)) {
+                            updateStatus(assetId, status);
+                        }
+                    };
+
+                    const header = document.createElement('h3');
+                    const count = filtered.filter(a => (a.status || 'To Do') === status).length;
+                    header.innerHTML = `${status} <span>${count}</span>`;
+                    col.appendChild(header);
+
+                    filtered
+                        .filter(a => (a.status || 'To Do') === status)
+                        .sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority])
+                        .forEach(asset => {
+                            col.appendChild(createAssetCard(asset));
+                        });
+
+                    board.appendChild(col);
+                });
+
+                assetListEl.appendChild(board);
+
+            } else {
+                assetListEl.classList.remove('tree-view');
+                assetListEl.style.display = 'grid';
+                assetListEl.style.gridTemplateColumns = 'repeat(auto-fill, minmax(300px, 1fr))';
+
+                // Flat Sort
+                let sorted = [...filtered];
+                if (sortBy === 'priority') {
+                    sorted = sorted.filter(a => a.status !== 'Done');
+                    sorted.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority]);
+                }
+
+                sorted.forEach(asset => {
+                    assetListEl.appendChild(createAssetCard(asset));
+                });
+            }
+
+            // Update Stats
+            const total = assets.length;
+            const done = assets.filter(a => a.status === 'Done').length;
+            statsDisplay.textContent = `Progress: ${done}/${total} (${Math.round(total ? (done / total) * 100 : 0)}%)`;
+        }
+
+        function toggleTag(tag) {
+            if (activeTags.has(tag)) {
+                activeTags.delete(tag);
+            } else {
+                activeTags.add(tag);
+            }
+            renderTags();
+            renderAssets();
+        }
+
+
+
+        function toggleCollapse(id) {
+            if (collapsedAssets.has(id)) {
+                collapsedAssets.delete(id);
+            } else {
+                collapsedAssets.add(id);
+            }
+            renderAssets();
+        }
+
+        function updateStatus(id, newStatus) {
+            const asset = assets.find(a => a.id === id);
+            if (asset) {
+                asset.status = newStatus;
+                renderAssets();
+            }
+        }
+
+        function deleteAsset(id) {
+            if (confirm("Are you sure you want to delete this asset?")) {
+                assets = assets.filter(a => a.id !== id);
+                // Also remove children? For now, we leave them as orphans or they disappear from tree view
+                // Optional: assets = assets.filter(a => a.id !== id && a.parentId !== id);
+                renderAssets();
+            }
+        }
+
+
+
+        // toggleSubtask removed
+
+
+        // Event Listeners
+        searchInput.addEventListener('input', (e) => {
+            searchTerm = e.target.value;
+            renderAssets();
+        });
+
+        sortSelect.addEventListener('change', (e) => {
+            sortBy = e.target.value;
+            renderAssets();
+        });
+
+        // Modal Functions
+        const modal = document.getElementById('addAssetModal');
+        const form = document.getElementById('addAssetForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const parentIdInput = document.getElementById('parentId');
+
+        const submitBtn = form.querySelector('button[type="submit"]');
+        let currentModalImages = [];
+        let currentModalLinks = [];
+
+        function renderModalImages() {
+            const gallery = document.getElementById('imageGallery');
+            if (!gallery) return;
+            gallery.innerHTML = '';
+            currentModalImages.forEach((img, index) => {
+                const div = document.createElement('div');
+                div.style.position = 'relative';
+                div.innerHTML = `
+                    <div class="ref-preview" style="width: 100%; aspect-ratio: 1;" onclick="openImageViewer('${img}')">
+                        <img src="${img}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;">
+                    </div>
+                    <button type="button" onclick="removeModalImage(${index})" style="position: absolute; top: -5px; right: -5px; background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10;">&times;</button>
+                `;
+                gallery.appendChild(div);
+            });
+            if (currentModalImages.length === 0) {
+                gallery.innerHTML = '<div style="grid-column: 1/-1; color: #666; font-size: 0.8rem; text-align: center; padding: 10px;">Paste image or image URL...</div>';
+            }
+        }
+
+        window.removeModalImage = function (index) {
+            currentModalImages.splice(index, 1);
+            renderModalImages();
+        };
+
+        function renderModalLinks() {
+            const list = document.getElementById('linksList');
+            if (!list) return;
+            list.innerHTML = '';
+            currentModalLinks.forEach((link, index) => {
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.gap = '8px';
+                div.style.backgroundColor = '#1a1a1a';
+                div.style.padding = '6px 10px';
+                div.style.borderRadius = '4px';
+                div.style.border = '1px solid #333';
+                div.innerHTML = `
+                    <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem;">
+                        <span style="color: var(--accent-color); font-weight: 600;">${link.title || 'Link'}:</span> 
+                        <span style="color: #888;">${link.url}</span>
+                    </div>
+                    <button type="button" onclick="removeModalLink(${index})" style="background: none; border: none; color: #ff4d4d; cursor: pointer; font-size: 16px;">&times;</button>
+                `;
+                list.appendChild(div);
+            });
+            if (currentModalLinks.length === 0) {
+                list.innerHTML = '<div style="color: #666; font-size: 0.8rem; text-align: center; padding: 5px;">No links yet...</div>';
+            }
+        }
+
+        window.removeModalLink = function (index) {
+            currentModalLinks.splice(index, 1);
+            renderModalLinks();
+        };
+
+        window.addLinkFromModal = async function () {
+            const urlInput = document.getElementById('newLinkUrl');
+            const titleInput = document.getElementById('newLinkTitle');
+            const url = urlInput.value.trim();
+            let title = titleInput.value.trim();
+
+            if (!url) return;
+
+            // Simple title extraction if empty
+            if (!title) {
+                try {
+                    const urlObj = new URL(url);
+                    // YouTube Title Fetching logic
+                    if (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')) {
+                        try {
+                            const response = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+                            const data = await response.json();
+                            if (data.title) title = data.title;
+                        } catch (e) {
+                            console.error("Failed to fetch youtube title", e);
+                        }
+                    }
+
+                    // Fallback to domain
+                    if (!title) {
+                        title = urlObj.hostname.replace('www.', '');
+                    }
+                } catch (e) {
+                    title = 'Link';
+                }
+            }
+
+            currentModalLinks.push({ url, title });
+            urlInput.value = '';
+            titleInput.value = '';
+            renderModalLinks();
+        };
+
+        function openModal(parentId = null, editId = null) {
+            modal.classList.add('active');
+
+            // Reset state
+            editingAssetId = editId;
+            parentIdInput.value = parentId || '';
+            currentModalImages = [];
+
+            if (editId) {
+                // Edit Mode
+                const asset = assets.find(a => a.id === editId);
+                if (asset) {
+                    modalTitle.textContent = "Edit Asset";
+                    submitBtn.textContent = "Update Asset";
+
+                    document.getElementById('title').value = asset.title;
+                    document.getElementById('priority').value = asset.priority;
+                    document.getElementById('status').value = asset.status || 'To Do';
+                    document.getElementById('tags').value = asset.tags.join(', ');
+                    document.getElementById('description').value = asset.description || '';
+
+                    if (asset.refImages) currentModalImages = [...asset.refImages];
+                    currentModalLinks = asset.refLinks ? [...asset.refLinks] : [];
+
+                    // Keep parentId if it exists
+                    parentIdInput.value = asset.parentId || '';
+                }
+            } else if (parentId) {
+                // Add Subtask Mode
+                const parent = assets.find(a => a.id === parentId);
+                modalTitle.textContent = `Add Subtask to "${parent.title}"`;
+                submitBtn.textContent = "Add Asset";
+
+                form.reset();
+                currentModalImages = [];
+                currentModalLinks = [];
+
+                document.getElementById('priority').value = parent.priority;
+                document.getElementById('status').value = 'To Do';
+
+                parentIdInput.value = parentId;
+            } else {
+                // Add New Asset Mode
+                modalTitle.textContent = "Add New Asset";
+                submitBtn.textContent = "Add Asset";
+                form.reset();
+                currentModalImages = [];
+                currentModalLinks = [];
+                parentIdInput.value = '';
+            }
+
+            renderModalImages();
+            renderModalLinks();
+
+            // Focus title
+            setTimeout(() => document.getElementById('title').focus(), 100);
+        }
+
+        // Paste Support
+        document.addEventListener('paste', (e) => {
+            if (!modal.classList.contains('active')) return;
+
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        currentModalImages.push(event.target.result);
+                        renderModalImages();
+                    };
+                    reader.readAsDataURL(blob);
+                } else if (items[i].type === 'text/plain') {
+                    // Check if it's a URL ending in image ext
+                    items[i].getAsString((text) => {
+                        if (text.match(/\.(jpeg|jpg|gif|png|webp)$/i) || text.startsWith('data:image')) {
+                            // Basic check for URL or base64
+                            currentModalImages.push(text.trim());
+                            renderModalImages();
+                        }
+                    });
+                }
+            }
+        });
+
+        // Drag & Drop Image Support
+        const imageGallery = document.getElementById('imageGallery');
+
+        imageGallery.ondragover = (e) => {
+            e.preventDefault();
+            imageGallery.classList.add('drag-over');
+        };
+
+        imageGallery.ondragleave = () => {
+            imageGallery.classList.remove('drag-over');
+        };
+
+        imageGallery.ondrop = (e) => {
+            e.preventDefault();
+            imageGallery.classList.remove('drag-over');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            currentModalImages.push(event.target.result);
+                            renderModalImages();
+                        };
+                        reader.readAsDataURL(files[i]);
+                    }
+                }
+            } else {
+                const text = e.dataTransfer.getData('text/plain');
+                if (text && (text.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || text.startsWith('data:image'))) {
+                    currentModalImages.push(text.trim());
+                    renderModalImages();
+                }
+            }
+        };
+
+        function closeModal() {
+            modal.classList.remove('active');
+            form.reset();
+            parentIdInput.value = '';
+            editingAssetId = null;
+        }
+
+        // Close on outside click
+        let modalMouseDownTarget = null;
+        modal.addEventListener('mousedown', (e) => {
+            modalMouseDownTarget = e.target;
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal && modalMouseDownTarget === modal) {
+                closeModal();
+            }
+        });
+
+        // Handle Submit
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const parentId = parentIdInput.value ? parseInt(parentIdInput.value) : null;
+            const title = document.getElementById('title').value;
+            const priority = document.getElementById('priority').value;
+            const status = document.getElementById('status').value;
+            const tagsInput = document.getElementById('tags').value;
+            const description = document.getElementById('description').value;
+            const refImages = [...currentModalImages];
+            const refLinks = [...currentModalLinks];
+
+            const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+            if (editingAssetId) {
+                // Update Existing
+                const asset = assets.find(a => a.id === editingAssetId);
+                if (asset) {
+                    asset.title = title;
+                    asset.priority = priority;
+                    asset.status = status;
+                    asset.tags = tags;
+                    asset.description = description;
+                    asset.refImages = refImages;
+                    asset.refLinks = refLinks;
+                    // parentId is usually not changed here unless we want to support moving
+                }
+            } else {
+                // Create New
+                const newAsset = {
+                    id: Date.now(), // Simple unique ID
+                    parentId: parentId, // Link to parent
+                    title,
+                    priority,
+                    status: status || 'To Do',
+                    tags,
+                    description,
+                    refImages,
+                    refLinks,
+                    subtasks: []
+                };
+                assets.push(newAsset);
+            }
+
+            renderTags();
+            renderAssets();
+            closeModal();
+        });
+
+        // Initialize
+        renderTags();
+        renderAssets();
+
+        // Image Viewer Functions
+        const imageViewer = document.getElementById('imageViewer');
+        const viewerImage = document.getElementById('viewerImage');
+
+        window.openImageViewer = function (url) {
+            viewerImage.src = url;
+            imageViewer.style.display = 'flex';
+        };
+
+        window.closeImageViewer = function () {
+            imageViewer.style.display = 'none';
+            viewerImage.src = '';
+        };
+
+        // Handle Esc to close viewer
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeImageViewer();
+            }
+        });
+    </script>
+</body>
+
+</html>
