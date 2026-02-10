@@ -1636,6 +1636,28 @@
             renderModalLinks();
         };
 
+        async function recursiveUpdateChildren(parentId, oldPrefix, newPrefix) {
+            const children = assets.filter(a => a.parentId === parentId);
+            for (const child of children) {
+                if (child.title.startsWith(oldPrefix)) {
+                    const newChildTitle = newPrefix + child.title.substring(oldPrefix.length);
+                    const oldChildTitle = child.title;
+
+                    const { error } = await supabaseClient
+                        .from('assets')
+                        .update({ title: newChildTitle })
+                        .eq('id', child.id);
+
+                    if (error) {
+                        console.error('Error updating child title:', error);
+                    } else {
+                        // Recursively update this child's own children
+                        await recursiveUpdateChildren(child.id, oldChildTitle + '-', newChildTitle + '-');
+                    }
+                }
+            }
+        }
+
         function openModal(parentId = null, editId = null) {
             modal.classList.add('active');
 
@@ -1863,6 +1885,9 @@
 
                 if (editingAssetId) {
                     // Update Existing
+                    const oldAsset = assets.find(a => a.id === editingAssetId);
+                    const oldTitle = oldAsset ? oldAsset.title : '';
+
                     const { error } = await supabaseClient
                         .from('assets')
                         .update(assetData)
@@ -1871,6 +1896,11 @@
                     if (error) {
                         alert('Error updating asset: ' + error.message);
                         return;
+                    }
+
+                    // If title changed, sync children prefixes
+                    if (oldTitle && oldTitle !== title) {
+                        await recursiveUpdateChildren(editingAssetId, oldTitle + '-', title + '-');
                     }
                 } else {
                     // Create New
