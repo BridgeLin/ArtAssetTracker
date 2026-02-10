@@ -868,11 +868,17 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Reference Images (Paste images here to add)</label>
+                    <label>Reference Images (Paste or drag images here, or use the button below)</label>
                     <div id="imageGallery"
                         style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin-bottom: 10px; border: 2px dashed #444; padding: 10px; border-radius: 4px; min-height: 50px;">
                         <!-- Images injected here -->
                     </div>
+                    <button type="button" class="btn btn-secondary" onclick="triggerLocalUpload()"
+                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span>📁</span> Upload from local
+                    </button>
+                    <input type="file" id="localFileInput" multiple accept="image/*" style="display: none;"
+                        onchange="handleLocalFiles(this.files)">
                 </div>
 
                 <div class="form-group">
@@ -1463,6 +1469,27 @@
                     currentModalImages.push(text.trim());
                     renderModalImages();
                 }
+            }
+        };
+
+        window.triggerLocalUpload = function () {
+            document.getElementById('localFileInput').click();
+        };
+
+        window.handleLocalFiles = function (files) {
+            if (files.length > 0) {
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            currentModalImages.push(event.target.result);
+                            renderModalImages();
+                        };
+                        reader.readAsDataURL(files[i]);
+                    }
+                }
+                // Clear the input value so the same file can be selected again if needed
+                document.getElementById('localFileInput').value = '';
             }
         };
 
