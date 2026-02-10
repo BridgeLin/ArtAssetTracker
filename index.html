@@ -956,11 +956,10 @@
 
                 <div class="form-group">
                     <label for="title">Asset Title *</label>
-                    <div class="input-with-prefix">
-                        <span id="titlePrefix"
-                            style="color: var(--text-secondary); white-space: nowrap; display: none; padding-left: 10px; font-weight: 500;"></span>
-                        <input type="text" id="title" required placeholder="e.g., Player Jump Animation">
+                    <div id="parentContextShow"
+                        style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px; display: none;">
                     </div>
+                    <input type="text" id="title" required placeholder="e.g., Player Jump Animation">
                 </div>
 
 
@@ -1190,6 +1189,20 @@
         }
 
         // Render Functions
+        function getBreadcrumb(asset, allAssets) {
+            let path = [];
+            let current = asset;
+            while (current && current.parentId) {
+                current = allAssets.find(a => a.id === current.parentId);
+                if (current) {
+                    path.unshift(current.title);
+                } else {
+                    break;
+                }
+            }
+            return path;
+        }
+
         function renderTags() {
             const allTags = new Set();
             assets.forEach(asset => asset.tags.forEach(tag => allTags.add(tag)));
@@ -1229,9 +1242,19 @@
                 ? `<button class="toggle-tree-btn" onclick="toggleCollapse('${asset.id}'); event.stopPropagation()" style="background:none; border:1px solid #444; color:var(--text-secondary); cursor:pointer; font-size:0.8rem; padding: 4px 8px; border-radius:4px; font-weight:600; transition: background 0.2s;">${isCollapsed ? '▶ Show Subtasks' : '▼ Hide Subtasks'}</button>`
                 : '';
 
+            // Handle breadcrumb for non-hierarchy views
+            let breadcrumbHtml = '';
+            if (sortBy !== 'hierarchy') {
+                const path = getBreadcrumb(asset, assets);
+                if (path.length > 0) {
+                    breadcrumbHtml = `<div class="breadcrumb">${path.join(' > ')} ></div>`;
+                }
+            }
+
             card.innerHTML = `
                 <div class="card-header">
                     <div class="card-title-group">
+                        ${breadcrumbHtml}
                         <h3 class="card-title">${asset.title}</h3>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
@@ -1636,28 +1659,6 @@
             renderModalLinks();
         };
 
-        async function recursiveUpdateChildren(parentId, oldPrefix, newPrefix) {
-            const children = assets.filter(a => a.parentId === parentId);
-            for (const child of children) {
-                if (child.title.startsWith(oldPrefix)) {
-                    const newChildTitle = newPrefix + child.title.substring(oldPrefix.length);
-                    const oldChildTitle = child.title;
-
-                    const { error } = await supabaseClient
-                        .from('assets')
-                        .update({ title: newChildTitle })
-                        .eq('id', child.id);
-
-                    if (error) {
-                        console.error('Error updating child title:', error);
-                    } else {
-                        // Recursively update this child's own children
-                        await recursiveUpdateChildren(child.id, oldChildTitle + '-', newChildTitle + '-');
-                    }
-                }
-            }
-        }
-
         function openModal(parentId = null, editId = null) {
             modal.classList.add('active');
 
@@ -1666,10 +1667,10 @@
             parentIdInput.value = parentId || '';
             currentModalImages = [];
 
-            const prefixEl = document.getElementById('titlePrefix');
+            const contextEl = document.getElementById('parentContextShow');
             const titleInput = document.getElementById('title');
-            prefixEl.style.display = 'none';
-            prefixEl.textContent = '';
+            contextEl.style.display = 'none';
+            contextEl.textContent = '';
             titleInput.value = '';
 
             if (editId) {
@@ -1692,13 +1693,11 @@
                     const pId = asset.parentId || '';
                     parentIdInput.value = pId;
 
-                    // If it's a subtask, handle prefix stripping for display
                     if (pId) {
                         const parent = assets.find(a => a.id === pId);
-                        if (parent && asset.title.startsWith(parent.title + '-')) {
-                            prefixEl.textContent = parent.title + '-';
-                            prefixEl.style.display = 'inline';
-                            titleInput.value = asset.title.substring(parent.title.length + 1);
+                        if (parent) {
+                            contextEl.textContent = `Parent: ${parent.title}`;
+                            contextEl.style.display = 'block';
                         }
                     }
                 }
@@ -1712,8 +1711,8 @@
                 currentModalImages = [];
                 currentModalLinks = [];
 
-                prefixEl.textContent = parent.title + '-';
-                prefixEl.style.display = 'inline';
+                contextEl.textContent = `Adding subtask to: ${parent.title}`;
+                contextEl.style.display = 'block';
                 titleInput.value = '';
 
                 document.getElementById('priority').value = parent.priority;
@@ -1856,11 +1855,7 @@
             try {
 
                 const parentId = parentIdInput.value || null;
-                let title = document.getElementById('title').value;
-                const prefixEl = document.getElementById('titlePrefix');
-                if (prefixEl.style.display !== 'none' && prefixEl.textContent) {
-                    title = prefixEl.textContent + title;
-                }
+                const title = document.getElementById('title').value;
 
                 const priority = document.getElementById('priority').value;
                 const status = document.getElementById('status').value;
@@ -1885,9 +1880,6 @@
 
                 if (editingAssetId) {
                     // Update Existing
-                    const oldAsset = assets.find(a => a.id === editingAssetId);
-                    const oldTitle = oldAsset ? oldAsset.title : '';
-
                     const { error } = await supabaseClient
                         .from('assets')
                         .update(assetData)
@@ -1896,11 +1888,6 @@
                     if (error) {
                         alert('Error updating asset: ' + error.message);
                         return;
-                    }
-
-                    // If title changed, sync children prefixes
-                    if (oldTitle && oldTitle !== title) {
-                        await recursiveUpdateChildren(editingAssetId, oldTitle + '-', title + '-');
                     }
                 } else {
                     // Create New
