@@ -1022,6 +1022,8 @@
                 </div>
 
                 <div class="form-actions">
+                    <button type="button" id="duplicateBtn" class="btn btn-secondary"
+                        style="margin-right: auto; color: var(--accent-color); border-color: var(--accent-color); display: none;">Duplicate</button>
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Add Asset</button>
                 </div>
@@ -1559,6 +1561,7 @@
         const form = document.getElementById('addAssetForm');
         const modalTitle = document.getElementById('modalTitle');
         const parentIdInput = document.getElementById('parentId');
+        const duplicateBtn = document.getElementById('duplicateBtn');
 
         const submitBtn = form.querySelector('button[type="submit"]');
         let currentModalImages = [];
@@ -1733,8 +1736,86 @@
             renderModalImages();
             renderModalLinks();
 
+            // Duplicate button logic
+            if (editId) {
+                duplicateBtn.style.display = 'block';
+                duplicateBtn.onclick = () => duplicateAsset(editId);
+            } else {
+                duplicateBtn.style.display = 'none';
+                duplicateBtn.onclick = null;
+            }
+
             // Focus title
             setTimeout(() => document.getElementById('title').focus(), 100);
+        }
+
+        async function duplicateAsset(assetId) {
+            const asset = assets.find(a => a.id === assetId);
+            if (!asset) return;
+
+            if (!confirm(`Duplicate "${asset.title}" and all its subtasks?`)) return;
+
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                document.querySelector('.loading-text').textContent = 'Duplicating...';
+            }
+
+            try {
+                // Get all descendant assets recursively
+                const getDescendants = (parentId) => {
+                    let children = assets.filter(a => a.parentId === parentId);
+                    let descendants = [...children];
+                    children.forEach(child => {
+                        descendants = [...descendants, ...getDescendants(child.id)];
+                    });
+                    return descendants;
+                };
+
+                const descendants = getDescendants(assetId);
+                const allToCopy = [asset, ...descendants];
+
+                // Map old IDs to the new ones to maintain hierarchy
+                const idMap = {};
+
+                for (const item of allToCopy) {
+                    const isRoot = item.id === assetId;
+                    const newData = {
+                        title: isRoot ? `${item.title} (Copy)` : item.title,
+                        priority: item.priority,
+                        status: item.status,
+                        tags: item.tags,
+                        description: item.description,
+                        ref_images: item.refImages,
+                        ref_links: item.refLinks,
+                        project_id: activeProjectId,
+                        parent_id: isRoot ? item.parentId : idMap[item.parentId]
+                    };
+
+                    const { data, error } = await supabaseClient
+                        .from('assets')
+                        .insert([newData])
+                        .select();
+
+                    if (error) throw error;
+                    if (data && data.length > 0) {
+                        idMap[item.id] = data[0].id;
+                    }
+                }
+
+                await loadAssets();
+                renderTags();
+                renderAssets();
+                closeModal();
+            } catch (err) {
+                console.error('Error duplicating asset:', err);
+                alert('Duplication failed: ' + err.message);
+            } finally {
+                if (overlay) {
+                    overlay.style.display = 'none';
+                    document.querySelector('.loading-text').textContent = 'Loading Assets...';
+                }
+            }
         }
 
         // Paste Support
