@@ -859,6 +859,30 @@
             color: var(--accent-color);
             background-color: rgba(187, 134, 252, 0.05);
         }
+
+        /* Input with Prefix */
+        .input-with-prefix {
+            display: flex;
+            align-items: center;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .input-with-prefix:focus-within {
+            outline: 2px solid var(--accent-color);
+            border-color: transparent;
+        }
+
+        .input-with-prefix input {
+            border: none !important;
+            flex: 1;
+        }
+
+        .input-with-prefix input:focus {
+            outline: none !important;
+        }
     </style>
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -932,7 +956,11 @@
 
                 <div class="form-group">
                     <label for="title">Asset Title *</label>
-                    <input type="text" id="title" required placeholder="e.g., Player Jump Animation">
+                    <div class="input-with-prefix">
+                        <span id="titlePrefix"
+                            style="color: var(--text-secondary); white-space: nowrap; display: none; padding-left: 10px; font-weight: 500;"></span>
+                        <input type="text" id="title" required placeholder="e.g., Player Jump Animation">
+                    </div>
                 </div>
 
 
@@ -1616,6 +1644,12 @@
             parentIdInput.value = parentId || '';
             currentModalImages = [];
 
+            const prefixEl = document.getElementById('titlePrefix');
+            const titleInput = document.getElementById('title');
+            prefixEl.style.display = 'none';
+            prefixEl.textContent = '';
+            titleInput.value = '';
+
             if (editId) {
                 // Edit Mode
                 const asset = assets.find(a => a.id === editId);
@@ -1623,7 +1657,7 @@
                     modalTitle.textContent = "Edit Asset";
                     submitBtn.textContent = "Update Asset";
 
-                    document.getElementById('title').value = asset.title;
+                    titleInput.value = asset.title;
                     document.getElementById('priority').value = asset.priority;
                     document.getElementById('status').value = asset.status || 'To Do';
                     document.getElementById('tags').value = asset.tags.join(', ');
@@ -1633,7 +1667,18 @@
                     currentModalLinks = asset.refLinks ? [...asset.refLinks] : [];
 
                     // Keep parentId if it exists
-                    parentIdInput.value = asset.parentId || '';
+                    const pId = asset.parentId || '';
+                    parentIdInput.value = pId;
+
+                    // If it's a subtask, handle prefix stripping for display
+                    if (pId) {
+                        const parent = assets.find(a => a.id === pId);
+                        if (parent && asset.title.startsWith(parent.title + '-')) {
+                            prefixEl.textContent = parent.title + '-';
+                            prefixEl.style.display = 'inline';
+                            titleInput.value = asset.title.substring(parent.title.length + 1);
+                        }
+                    }
                 }
             } else if (parentId) {
                 // Add Subtask Mode
@@ -1645,7 +1690,10 @@
                 currentModalImages = [];
                 currentModalLinks = [];
 
-                document.getElementById('title').value = parent.title + '-';
+                prefixEl.textContent = parent.title + '-';
+                prefixEl.style.display = 'inline';
+                titleInput.value = '';
+
                 document.getElementById('priority').value = parent.priority;
                 document.getElementById('status').value = 'To Do';
 
@@ -1658,6 +1706,7 @@
                 currentModalImages = [];
                 currentModalLinks = [];
                 parentIdInput.value = '';
+                titleInput.value = '';
             }
 
             renderModalImages();
@@ -1785,7 +1834,12 @@
             try {
 
                 const parentId = parentIdInput.value || null;
-                const title = document.getElementById('title').value;
+                let title = document.getElementById('title').value;
+                const prefixEl = document.getElementById('titlePrefix');
+                if (prefixEl.style.display !== 'none' && prefixEl.textContent) {
+                    title = prefixEl.textContent + title;
+                }
+
                 const priority = document.getElementById('priority').value;
                 const status = document.getElementById('status').value;
                 const tagsInput = document.getElementById('tags').value;
