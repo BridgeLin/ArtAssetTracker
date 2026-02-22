@@ -18,6 +18,9 @@
             --priority-high: #cf6679;
             --priority-medium: #ffb74d;
             --priority-low: #81c784;
+            --grade-a: #bb86fc;
+            --grade-b: #03dac6;
+            --grade-c: #a0a0a0;
             --font-main: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
@@ -231,6 +234,37 @@
             background-color: rgba(129, 199, 132, 0.2);
             color: var(--priority-low);
             border: 1px solid var(--priority-low);
+        }
+
+        .badge-grade-a {
+            background-color: rgba(187, 134, 252, 0.2);
+            color: var(--grade-a);
+            border: 1px solid var(--grade-a);
+        }
+
+        .badge-grade-b {
+            background-color: rgba(3, 218, 198, 0.2);
+            color: var(--grade-b);
+            border: 1px solid var(--grade-b);
+        }
+
+        .badge-grade-c {
+            background-color: rgba(160, 160, 160, 0.2);
+            color: var(--grade-c);
+            border: 1px solid var(--grade-c);
+        }
+
+        .due-date-badge {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .due-date-overdue {
+            color: #ff4444;
+            font-weight: 700;
         }
 
         .tag {
@@ -972,7 +1006,7 @@
             <select id="sortSelect">
                 <option value="hierarchy" selected>Hierarchy (Tree View)</option>
                 <option value="kanban">Kanban Board</option>
-                <option value="priority">Priority (High -> Low)</option>
+                <option value="date">Due Date (Earliest First)</option>
             </select>
         </div>
 
@@ -1024,12 +1058,16 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="priority">Priority</label>
-                        <select id="priority">
-                            <option value="Low">Low</option>
-                            <option value="Medium" selected>Medium</option>
-                            <option value="High">High</option>
+                        <label for="assetGrade">Asset Grade</label>
+                        <select id="assetGrade">
+                            <option value="A">Grade A</option>
+                            <option value="B" selected>Grade B</option>
+                            <option value="C">Grade C</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="dueDate">Due Date</label>
+                        <input type="date" id="dueDate">
                     </div>
                     <div class="form-group">
                         <label for="status">Status</label>
@@ -1115,6 +1153,9 @@
         let searchTerm = "";
         let sortBy = "hierarchy"; // Default to hierarchy
         let collapsedAssets = new Set(); // Track collapsed nodes
+
+        // Maps
+        const gradeMap = { 'A': 3, 'B': 2, 'C': 1 };
 
         // Elements
         const assetListEl = document.getElementById('assetList');
@@ -1282,6 +1323,13 @@
             card.id = `asset-card-${asset.id}`;
             card.className = `asset-card`;
             card.setAttribute('draggable', 'true');
+
+            // Calculate overdue status
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const dueDate = asset.dueDate ? new Date(asset.dueDate) : null;
+            const isOverdue = dueDate && dueDate < now && asset.status !== 'Done' && asset.status !== 'Review';
+
             card.onclick = (e) => {
                 // Prevent opening the edit modal if an interactive element was clicked
                 if (e.target.closest('button, select, a, .ref-preview, .kanban-subtask-item')) return;
@@ -1370,7 +1418,10 @@
                 </div>
                 
                 <div class="card-meta">
-                    <span class="badge badge-priority-${asset.priority.toLowerCase()}">${asset.priority}</span>
+                    <span class="badge badge-grade-${asset.grade.toLowerCase()}">Grade ${asset.grade}</span>
+                    <span class="due-date-badge ${isOverdue ? 'due-date-overdue' : ''}">
+                        📅 ${asset.dueDate ? asset.dueDate : 'No Date'}
+                    </span>
                     ${asset.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
                 </div>
 
@@ -1426,7 +1477,20 @@
             }
 
             assetListEl.innerHTML = '';
-            const priorityMap = { 'High': 3, 'Medium': 2, 'Low': 1 };
+
+            const sortComparison = (a, b) => {
+                // Primary: Due Date (ASC - earlier first)
+                if (a.dueDate && b.dueDate) {
+                    if (a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+                } else if (a.dueDate) {
+                    return -1;
+                } else if (b.dueDate) {
+                    return 1;
+                }
+
+                // Secondary: Asset Grade (A > B > C)
+                return gradeMap[b.grade] - gradeMap[a.grade];
+            };
 
             // For tag inheritance filtering
             const assetMap = new Map();
@@ -1490,7 +1554,7 @@
                     if (hasKids && !isCollapsed) {
                         const childrenContainer = document.createElement('div');
                         childrenContainer.className = 'tree-children';
-                        kids.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority])
+                        kids.sort(sortComparison)
                             .forEach(kid => {
                                 childrenContainer.appendChild(renderNode(kid));
                             });
@@ -1503,7 +1567,7 @@
                 const filteredIds = new Set(filtered.map(a => a.id));
                 const renderRoots = filtered.filter(a => !a.parentId || !filteredIds.has(a.parentId));
 
-                renderRoots.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority])
+                renderRoots.sort(sortComparison)
                     .forEach(root => {
                         assetListEl.appendChild(renderNode(root));
                     });
@@ -1556,7 +1620,7 @@
 
                     rootAssets
                         .filter(a => (a.status || 'To Do') === status)
-                        .sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority])
+                        .sort(sortComparison)
                         .forEach(asset => {
                             col.appendChild(createAssetCard(asset, false, false, 'kanban-compact'));
                         });
@@ -1573,10 +1637,10 @@
 
                 // Flat Sort
                 let sorted = [...filtered];
-                if (sortBy === 'priority') {
+                if (sortBy === 'date') {
                     sorted = sorted.filter(a => a.status !== 'Done');
-                    sorted.sort((a, b) => priorityMap[b.priority] - priorityMap[a.priority]);
                 }
+                sorted.sort(sortComparison);
 
                 sorted.forEach(asset => {
                     assetListEl.appendChild(createAssetCard(asset));
@@ -1809,7 +1873,8 @@
                     submitBtn.textContent = "Update Asset";
 
                     titleInput.value = asset.title;
-                    document.getElementById('priority').value = asset.priority;
+                    document.getElementById('assetGrade').value = asset.grade || 'B';
+                    document.getElementById('dueDate').value = asset.dueDate || '';
                     document.getElementById('status').value = asset.status || 'To Do';
                     document.getElementById('tags').value = asset.tags.join(', ');
                     document.getElementById('description').value = asset.description || '';
@@ -1843,7 +1908,8 @@
                 contextEl.style.display = 'block';
                 titleInput.value = '';
 
-                document.getElementById('priority').value = parent.priority;
+                document.getElementById('assetGrade').value = parent.grade || 'B';
+                document.getElementById('dueDate').value = parent.dueDate || '';
                 document.getElementById('status').value = 'To Do';
 
                 parentIdInput.value = parentId;
@@ -1907,12 +1973,13 @@
                     const isRoot = item.id === assetId;
                     const newData = {
                         title: isRoot ? `${item.title} (Copy)` : item.title,
-                        priority: item.priority,
+                        asset_grade: item.grade || 'B',
+                        due_date: item.dueDate || '',
                         status: item.status,
-                        tags: item.tags,
+                        tags: item.tags || [],
                         description: item.description,
-                        ref_images: item.refImages,
-                        ref_links: item.refLinks,
+                        ref_images: item.refImages || [],
+                        ref_links: item.refLinks || [],
                         project_id: activeProjectId,
                         parent_id: isRoot ? item.parentId : idMap[item.parentId]
                     };
@@ -2063,7 +2130,8 @@
                 const parentId = parentIdInput.value || null;
                 const title = document.getElementById('title').value;
 
-                const priority = document.getElementById('priority').value;
+                const assetGrade = document.getElementById('assetGrade').value;
+                const dueDate = document.getElementById('dueDate').value;
                 const status = document.getElementById('status').value;
                 const tagsInput = document.getElementById('tags').value;
                 const description = document.getElementById('description').value;
@@ -2074,7 +2142,8 @@
 
                 const assetData = {
                     title,
-                    priority,
+                    asset_grade: assetGrade,
+                    due_date: dueDate,
                     status: status || 'To Do',
                     tags,
                     description,
@@ -2150,7 +2219,8 @@
                     id: item.id,
                     parentId: item.parent_id,
                     title: item.title,
-                    priority: item.priority,
+                    grade: item.asset_grade || 'B',
+                    dueDate: item.due_date || '',
                     status: item.status,
                     tags: item.tags || [],
                     description: item.description,
